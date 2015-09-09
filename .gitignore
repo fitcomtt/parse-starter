@@ -4,3 +4,4 @@
 node_modules/
 platforms/
 plugins/
+.io-config.json
