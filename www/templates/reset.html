@@ -1,0 +1,15 @@
+<ion-view title="Password Reset">
+    <ion-nav-buttons>
+        <button class="button button-icon icon back-arrow" ui-sref="login"></button>
+    </ion-nav-buttons>
+    <ion-content>
+        <ion-list>
+            <label class="item item-input item-floating-label">
+                <span class="input-label">Email</span>
+                <input type="text" placeholder="Email" id="reset-email" ng-model="user.email">
+            </label>
+            <button class="button button-block button-balanced" ng-click="reset(user)" ng-disabled="!ready">RESET</button>
+        </ion-list>
+    </ion-content>
+
+</ion-view>

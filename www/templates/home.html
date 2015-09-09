@@ -1,0 +1,12 @@
+<ion-view title="Home">
+    <ion-nav-buttons>
+        <button class="button button-icon icon back-arrow" ng-click="back()"></button>
+    </ion-nav-buttons>
+
+    <ion-nav-buttons side="secondary">
+        <button class="button button-icon icon unlock" ng-click="logout()"></button>
+    </ion-nav-buttons>
+<ion-content>
+    <p>Welcome {{currentUser.fn +' '+currentUser.ln}}</p>
+</ion-content>
+</ion-view>

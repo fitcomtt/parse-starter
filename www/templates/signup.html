@@ -1,0 +1,30 @@
+<ion-view title="Sign Up">
+<ion-content>
+    <ion-list>
+        <label class="item item-input item-floating-label">
+            <span class="input-label">Username</span>
+            <input type="text" placeholder="Username" id="signup-username" ng-model="user.username">
+        </label>
+        <label class="item item-input item-floating-label">
+            <span class="input-label">First Name</span>
+            <input type="text" placeholder="First Name" id="signup-fn" ng-model="user.fn">
+        </label>
+        <label class="item item-input item-floating-label">
+            <span class="input-label">Last Name</span>
+            <input type="text" placeholder="Last Name" id="signup-ln" ng-model="user.ln">
+        </label>
+        <label class="item item-input item-floating-label">
+            <span class="input-label">Email</span>
+            <input type="text" placeholder="Email" id="signup-email" ng-model="user.email">
+        </label>
+        <label class="item item-input item-floating-label">
+            <span class="input-label">Password</span>
+            <input type="password" placeholder="Password" id="signup-password" ng-model="user.password">
+        </label>
+        <button class="button button-block button-balanced" ng-click="signup(user)" ng-disabled="!ready">SIGN UP</button>
+    </ion-list>
+</ion-content>
+    <ion-footer-bar class="bar bar-footer bar-light" ui-sref="login">
+       <h1 class="title">Already have an account ?</h1>
+    </ion-footer-bar>
+</ion-view>

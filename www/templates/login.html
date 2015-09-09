@@ -1,0 +1,20 @@
+<ion-view title="Log In">
+    <ion-content>
+        <ion-list>
+            <label class="item item-input item-floating-label">
+                <span class="input-label">Username</span>
+                <input type="text" placeholder="Username" id="username" ng-model="user.username">
+            </label>
+            <label class="item item-input item-floating-label ">
+                <span class="input-label">Password</span>
+                <input type="password" placeholder="Password" id="password" ng-model="user.password">
+            </label>
+            <button class="button button-block button-balanced" ng-click="login(user)" ng-disabled="!ready">LOG IN</button>
+            <button class="button button-block button-clear" id="forgot-button" ui-sref="reset">FORGOT PASSWORD ?</button>
+         <!--TODO--> <!--<button class="button button-block button-positive"  ng-click="fbLogin()">FACEBOOK</button>-->
+        </ion-list>
+    </ion-content>
+    <ion-footer-bar class="bar bar-footer bar-light" ui-sref="signup">
+        <h1 class="title">Don't have an account ?</h1>
+    </ion-footer-bar>
+</ion-view>

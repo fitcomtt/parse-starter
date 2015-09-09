@@ -1,0 +1,21 @@
+{
+  "name": "parse-js-sdk",
+  "version": "1.4.2",
+  "main": "lib/parse.js",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "components"
+  ],
+  "homepage": "https://github.com/albemuth/parse-js-sdk",
+  "_release": "1.4.2",
+  "_resolution": {
+    "type": "version",
+    "tag": "v1.4.2",
+    "commit": "5b43415868746562abac9bf16f6b4c9b360fc336"
+  },
+  "_source": "git://github.com/albemuth/parse-js-sdk.git",
+  "_target": "~1.4.2",
+  "_originalSource": "parse-js-sdk",
+  "_direct": true
+}

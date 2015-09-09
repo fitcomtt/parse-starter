@@ -1,0 +1,6 @@
+{
+  "name": "parse-js-sdk",
+  "version": "1.4.2",
+  "main": "./lib/parse.js",
+  "dependencies": {}
+}
