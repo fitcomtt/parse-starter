@@ -1,6 +1,6 @@
 ## What is it?
 
-Basic Ionic App starter that integrates with [http://parse.com](Parse.com). Contains a login and register screen.
+Basic Ionic App starter that integrates with [Parse.com](http://parse.com). Contains a login and register screen.
 
 ## How to use
 
