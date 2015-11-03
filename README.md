@@ -8,7 +8,9 @@ Download zip or clone repo
 
 Run `npm install`
 
-Run `npm install gulp`
+Change the ApplicationID & JavaScriptKey in `/www/js/app.js` to your own keys from Parse.com
+
+Run `npm install gulp` - if you want to use Gulp
 
 Run `cordova plugin add cordova-plugin-whitelist` - otherwise you will get a 404 from android
 
