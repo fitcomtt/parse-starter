@@ -1,5 +1,8 @@
 /**
- * Parse JavaScript SDK v1.6.0
+ * Parse JavaScript SDK v1.6.14
+ *
+ * The source tree of this library can be found at
+ *   https://github.com/ParsePlatform/Parse-SDK-JS
  */
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.Parse = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
 /**
@@ -162,9 +165,15 @@ function run(name, data, options) {
     throw new TypeError('Cloud function name must be a string.');
   }
 
-  return _CoreManager2['default'].getCloudController().run(name, data, {
-    useMasterKey: options.useMasterKey
-  })._thenRunCallbacks(options);
+  var requestOptions = {};
+  if (options.useMasterKey) {
+    requestOptions.useMasterKey = options.useMasterKey;
+  }
+  if (options.sessionToken) {
+    requestOptions.sessionToken = options.sessionToken;
+  }
+
+  return _CoreManager2['default'].getCloudController().run(name, data, requestOptions)._thenRunCallbacks(options);
 }
 
 _CoreManager2['default'].setCloudController({
@@ -173,7 +182,15 @@ _CoreManager2['default'].setCloudController({
 
     var payload = (0, _encode2['default'])(data, true);
 
-    var request = RESTController.request('POST', 'functions/' + name, payload, { useMasterKey: !!options.useMasterKey });
+    var requestOptions = {};
+    if (options.hasOwnProperty('useMasterKey')) {
+      requestOptions.useMasterKey = options.useMasterKey;
+    }
+    if (options.hasOwnProperty('sessionToken')) {
+      requestOptions.sessionToken = options.sessionToken;
+    }
+
+    var request = RESTController.request('POST', 'functions/' + name, payload, requestOptions);
 
     return request.then(function (res) {
       var decoded = (0, _decode2['default'])(res);
@@ -203,8 +220,8 @@ var config = {
   // Defaults
   IS_NODE: typeof process !== 'undefined' && !!process.versions && !!process.versions.node,
   REQUEST_ATTEMPT_LIMIT: 5,
-  SERVER_URL: 'https://api.parse.com',
-  VERSION: {"version":"1.6.0"}.version,
+  SERVER_URL: 'https://api.parse.com/1',
+  VERSION: 'js' + '1.6.14',
   APPLICATION_ID: null,
   JAVASCRIPT_KEY: null,
   MASTER_KEY: null,
@@ -501,7 +518,7 @@ exports['default'] = {
         FB.login(function (response) {
           if (response.authResponse) {
             if (options.success) {
-              options.success(self, {
+              options.success(_this, {
                 id: response.authResponse.userID,
                 access_token: response.authResponse.accessToken,
                 expiration_date: new Date(response.authResponse.expiresIn * 1000 + new Date().getTime()).toJSON()
@@ -693,7 +710,7 @@ var iidCache = null;
 
 function hexOctet() {
   return Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
-};
+}
 
 function generateId() {
   return hexOctet() + hexOctet() + '-' + hexOctet() + '-' + hexOctet() + '-' + hexOctet() + '-' + hexOctet() + hexOctet() + hexOctet();
@@ -944,7 +961,7 @@ function commitServerChanges(className, id, changes) {
   for (var attr in changes) {
     var val = changes[attr];
     state.serverData[attr] = val;
-    if (val && typeof val == 'object' && !(val instanceof _ParseObject2['default']) && !(val instanceof _ParseFile2['default']) && !(val instanceof _ParseRelation2['default'])) {
+    if (val && typeof val === 'object' && !(val instanceof _ParseObject2['default']) && !(val instanceof _ParseFile2['default']) && !(val instanceof _ParseRelation2['default'])) {
       var json = (0, _encode2['default'])(val, false, true);
       state.objectCache[attr] = JSON.stringify(json);
     }
@@ -1120,6 +1137,9 @@ Parse._getInstallationId = function () {
 
 _CoreManager2['default'].setInstallationController(_InstallationController2['default']);
 _CoreManager2['default'].setRESTController(_RESTController2['default']);
+
+// For legacy requires, of the form `var Parse = require('parse').Parse`
+Parse.Parse = Parse;
 
 module.exports = Parse;
 },{"./Analytics":1,"./Cloud":2,"./CoreManager":3,"./FacebookUtils":4,"./InstallationController":5,"./ParseACL":8,"./ParseConfig":9,"./ParseError":10,"./ParseFile":11,"./ParseGeoPoint":12,"./ParseInstallation":13,"./ParseObject":14,"./ParseOp":15,"./ParsePromise":16,"./ParseQuery":17,"./ParseRelation":18,"./ParseRole":19,"./ParseSession":20,"./ParseUser":21,"./Push":22,"./RESTController":23,"./Storage":24,"./decode":29,"./encode":30,"babel-runtime/helpers/interop-require-default":47,"babel-runtime/helpers/interop-require-wildcard":48}],8:[function(_dereq_,module,exports){
@@ -2459,7 +2479,10 @@ _CoreManager2['default'].setFileController({
       'X-Parse-JavaScript-Key': _CoreManager2['default'].get('JAVASCRIPT_KEY')
     };
     var url = _CoreManager2['default'].get('SERVER_URL');
-    url += '/1/files/' + name;
+    if (url[url.length - 1] !== '/') {
+      url += '/';
+    }
+    url += 'files/' + name;
     return _CoreManager2['default'].getRESTController().ajax('POST', url, source.file, headers);
   },
 
@@ -2867,6 +2890,15 @@ var objectCount = 0;
 // behavior in a server scenario
 var singleInstance = !_CoreManager2['default'].get('IS_NODE');
 
+function getServerUrlPath() {
+  var serverUrl = _CoreManager2['default'].get('SERVER_URL');
+  if (serverUrl[serverUrl.length - 1] !== '/') {
+    serverUrl += '/';
+  }
+  var url = serverUrl.replace(/https?:\/\//, '');
+  return url.substr(url.indexOf('/'));
+}
+
 /**
  * Creates a new model with defined attributes.
  *
@@ -2887,11 +2919,17 @@ var singleInstance = !_CoreManager2['default'].get('IS_NODE');
  * @constructor
  * @param {String} className The class name for the object
  * @param {Object} attributes The initial set of data to store in the object.
+ * @param {Object} options The options for this object instance.
  */
 
 var ParseObject = (function () {
-  function ParseObject(className, attributes) {
+  function ParseObject(className, attributes, options) {
     _classCallCheck(this, ParseObject);
+
+    // Enable legacy initializers
+    if (typeof this.initialize === 'function') {
+      this.initialize.apply(this, arguments);
+    }
 
     var toSet = null;
     this._objCount = objectCount++;
@@ -2908,13 +2946,12 @@ var ParseObject = (function () {
           toSet[attr] = className[attr];
         }
       }
+      if (attributes && typeof attributes === 'object') {
+        options = attributes;
+      }
     }
-    if (toSet && !this.set(toSet)) {
+    if (toSet && !this.set(toSet, options)) {
       throw new Error('Can\'t create an invalid Parse Object');
-    }
-    // Enable legacy initializers
-    if (typeof this.initialize === 'function') {
-      this.initialize.apply(this, arguments);
     }
   }
 
@@ -2997,9 +3034,15 @@ var ParseObject = (function () {
         if (val && typeof val === 'object' && !(val instanceof ParseObject) && !(val instanceof _ParseFile2['default']) && !(val instanceof _ParseRelation2['default'])) {
           // Due to the way browsers construct maps, the key order will not change
           // unless the object is changed
-          var json = (0, _encode2['default'])(val, false, true);
-          var stringified = JSON.stringify(json);
-          if (objectCache[attr] !== stringified) {
+          try {
+            var json = (0, _encode2['default'])(val, false, true);
+            var stringified = JSON.stringify(json);
+            if (objectCache[attr] !== stringified) {
+              dirty[attr] = val;
+            }
+          } catch (e) {
+            // Error occurred, possibly by a nested unsaved pointer in a mutable container
+            // No matter how it happened, it indicates a change in the attribute
             dirty[attr] = val;
           }
         }
@@ -3008,8 +3051,8 @@ var ParseObject = (function () {
     }
   }, {
     key: '_toFullJSON',
-    value: function _toFullJSON() {
-      var json = this.toJSON();
+    value: function _toFullJSON(seen) {
+      var json = this.toJSON(seen);
       json.__type = 'Object';
       json.className = this.className;
       return json;
@@ -3112,6 +3155,8 @@ var ParseObject = (function () {
       for (attr in response) {
         if ((attr === 'createdAt' || attr === 'updatedAt') && typeof response[attr] === 'string') {
           changes[attr] = (0, _parseDate2['default'])(response[attr]);
+        } else if (attr === 'ACL') {
+          changes[attr] = new _ParseACL2['default'](response[attr]);
         } else if (attr !== 'objectId') {
           changes[attr] = (0, _decode2['default'])(response[attr]);
         }
@@ -3132,10 +3177,7 @@ var ParseObject = (function () {
     key: '_handleSaveError',
     value: function _handleSaveError() {
       var pending = this._getPendingOps();
-      if (pending.length > 2) {
-        // There are more saves on the queue
-        ObjectState.mergeFirstPendingState(this.className, this._getStateIdentifier());
-      }
+      ObjectState.mergeFirstPendingState(this.className, this._getStateIdentifier());
     }
 
     /** Public methods **/
@@ -3153,11 +3195,17 @@ var ParseObject = (function () {
 
   }, {
     key: 'toJSON',
-    value: function toJSON() {
+    value: function toJSON(seen) {
+      var seenEntry = this.id ? this.className + ':' + this.id : this;
+      var seen = seen || [seenEntry];
       var json = {};
       var attrs = this.attributes;
       for (var attr in attrs) {
-        json[attr] = (0, _encode2['default'])(attrs[attr], false, false);
+        if ((attr === 'createdAt' || attr === 'updatedAt') && attrs[attr].toJSON) {
+          json[attr] = attrs[attr].toJSON();
+        } else {
+          json[attr] = (0, _encode2['default'])(attrs[attr], false, false, seen);
+        }
       }
       var pending = this._getPendingOps();
       for (var attr in pending[0]) {
@@ -3394,6 +3442,8 @@ var ParseObject = (function () {
           newOps[k] = (0, _ParseOp.opFromJSON)(changes[k]);
         } else if (k === 'objectId' || k === 'id') {
           this.id = changes[k];
+        } else if (k === 'ACL' && typeof changes[k] === 'object' && !(changes[k] instanceof _ParseACL2['default'])) {
+          newOps[k] = new _ParseOp.SetOp(new _ParseACL2['default'](changes[k]));
         } else {
           newOps[k] = new _ParseOp.SetOp(changes[k]);
         }
@@ -3411,12 +3461,14 @@ var ParseObject = (function () {
       }
 
       // Validate changes
-      var validation = this.validate(newValues);
-      if (validation) {
-        if (typeof options.error === 'function') {
-          options.error(this, validation);
+      if (!options.ignoreValidation) {
+        var validation = this.validate(newValues);
+        if (validation) {
+          if (typeof options.error === 'function') {
+            options.error(this, validation);
+          }
+          return false;
         }
-        return false;
       }
 
       // Consolidate Ops
@@ -3536,9 +3588,11 @@ var ParseObject = (function () {
     key: 'clone',
     value: function clone() {
       var clone = new this.constructor();
-      clone.set(this.attributes);
       if (!clone.className) {
         clone.className = this.className;
+      }
+      if (clone.set) {
+        clone.set(this.attributes);
       }
       return clone;
     }
@@ -3664,8 +3718,7 @@ var ParseObject = (function () {
 
     /**
      * Fetch the model from the server. If the server's representation of the
-     * model differs from its current attributes, they will be overriden,
-     * triggering a <code>"change"</code> event.
+     * model differs from its current attributes, they will be overriden.
      *
      * @method fetch
      * @param {Object} options A Backbone-style callback object.
@@ -3800,7 +3853,6 @@ var ParseObject = (function () {
 
     /**
      * Destroy this model on the server if it was already persisted.
-     * Optimistically removes the model from its collection, if it has one.
      * If `wait: true` is passed, waits for the server to respond
      * before removal.
      *
@@ -3949,7 +4001,6 @@ var ParseObject = (function () {
 
     /**
      * Destroy the given list of models on the server if it was already persisted.
-     * Optimistically removes each model from its collection, if it has one.
      *
      * <p>Unlike saveAll, if an error occurs while deleting an individual model,
      * this method will continue trying to delete the rest of the models if
@@ -3978,7 +4029,7 @@ var ParseObject = (function () {
      *       // If this is an aggregate error, then we can inspect each error
      *       // object individually to determine the reason why a particular
      *       // object was not deleted.
-     *       if (error.code == Parse.Error.AGGREGATE_ERROR) {
+     *       if (error.code === Parse.Error.AGGREGATE_ERROR) {
      *         for (var i = 0; i < error.errors.length; i++) {
      *           console.log("Couldn't delete " + error.errors[i].object.id +
      *             "due to " + error.errors[i].message);
@@ -4104,6 +4155,9 @@ var ParseObject = (function () {
         }
       }
       o._finishFetch(otherAttributes);
+      if (json.objectId) {
+        o._setExisted(true);
+      }
       return o;
     }
 
@@ -4194,17 +4248,18 @@ var ParseObject = (function () {
       } else if (classMap[adjustedClassName]) {
         parentProto = classMap[adjustedClassName].prototype;
       }
-      var ParseObjectSubclass = function ParseObjectSubclass(attributes) {
-        this.className = adjustedClassName;
-        this._objCount = objectCount++;
-        if (attributes && typeof attributes === 'object') {
-          if (!this.set(attributes || {})) {
-            throw new Error('Can\'t create an invalid Parse Object');
-          }
-        }
+      var ParseObjectSubclass = function ParseObjectSubclass(attributes, options) {
         // Enable legacy initializers
         if (typeof this.initialize === 'function') {
           this.initialize.apply(this, arguments);
+        }
+
+        this.className = adjustedClassName;
+        this._objCount = objectCount++;
+        if (attributes && typeof attributes === 'object') {
+          if (!this.set(attributes || {}, options)) {
+            throw new Error('Can\'t create an invalid Parse Object');
+          }
         }
       };
       ParseObjectSubclass.className = adjustedClassName;
@@ -4391,7 +4446,7 @@ _CoreManager2['default'].setObjectController({
             requests: batch.map(function (obj) {
               return {
                 method: 'DELETE',
-                path: '/1/classes/' + obj.className + '/' + obj._getId(),
+                path: getServerUrlPath() + 'classes/' + obj.className + '/' + obj._getId(),
                 body: {}
               };
             })
@@ -4501,7 +4556,7 @@ _CoreManager2['default'].setObjectController({
             return RESTController.request('POST', 'batch', {
               requests: batch.map(function (obj) {
                 var params = obj._getSaveParams();
-                params.path = '/1/' + params.path;
+                params.path = getServerUrlPath() + params.path;
                 return params;
               })
             }, options);
@@ -5121,6 +5176,7 @@ var RelationOp = (function (_Op7) {
 
 exports.RelationOp = RelationOp;
 },{"./ParseObject":14,"./ParseRelation":18,"./arrayContainsObject":27,"./decode":29,"./encode":30,"./unique":35,"babel-runtime/helpers/class-call-check":43,"babel-runtime/helpers/create-class":44,"babel-runtime/helpers/get":45,"babel-runtime/helpers/inherits":46,"babel-runtime/helpers/interop-require-default":47}],16:[function(_dereq_,module,exports){
+(function (process){
 /**
  * Copyright (c) 2015-present, Parse, LLC.
  * All rights reserved.
@@ -5130,8 +5186,6 @@ exports.RelationOp = RelationOp;
  * of patent rights can be found in the PATENTS file in the same directory.
  */
 
-// We may want to expose this value at a later time, so that Promises/A+ style
-// can be employed instead
 'use strict';
 
 var _createClass = _dereq_('babel-runtime/helpers/create-class')['default'];
@@ -5250,7 +5304,15 @@ var ParsePromise = (function () {
         }
 
         if (typeof resolvedCallback === 'function') {
-          results = [resolvedCallback.apply(this, results)];
+          if (_isPromisesAPlusCompliant) {
+            try {
+              results = [resolvedCallback.apply(this, results)];
+            } catch (e) {
+              results = [ParsePromise.error(e)];
+            }
+          } else {
+            results = [resolvedCallback.apply(this, results)];
+          }
         }
         if (results.length === 1 && ParsePromise.is(results[0])) {
           results[0].then(function () {
@@ -5266,8 +5328,15 @@ var ParsePromise = (function () {
       var wrappedRejectedCallback = function wrappedRejectedCallback(error) {
         var result = [];
         if (typeof rejectedCallback === 'function') {
-          result = [rejectedCallback(error)];
-
+          if (_isPromisesAPlusCompliant) {
+            try {
+              result = [rejectedCallback(error)];
+            } catch (e) {
+              result = [ParsePromise.error(e)];
+            }
+          } else {
+            result = [rejectedCallback(error)];
+          }
           if (result.length === 1 && ParsePromise.is(result[0])) {
             result[0].then(function () {
               promise.resolve.apply(promise, arguments);
@@ -5275,7 +5344,11 @@ var ParsePromise = (function () {
               promise.reject(error);
             });
           } else {
-            promise.reject(result[0]);
+            if (_isPromisesAPlusCompliant) {
+              promise.resolve.apply(promise, result);
+            } else {
+              promise.reject(result[0]);
+            }
           }
         } else {
           promise.reject(error);
@@ -5285,6 +5358,17 @@ var ParsePromise = (function () {
       var runLater = function runLater(fn) {
         fn.call();
       };
+      if (_isPromisesAPlusCompliant) {
+        if (typeof process !== 'undefined' && typeof process.nextTick === 'function') {
+          runLater = function (fn) {
+            process.nextTick(fn);
+          };
+        } else if (typeof setTimeout === 'function') {
+          runLater = function (fn) {
+            setTimeout(fn, 0);
+          };
+        }
+      }
 
       if (this._resolved) {
         runLater(function () {
@@ -5416,7 +5500,7 @@ var ParsePromise = (function () {
   }], [{
     key: 'is',
     value: function is(promise) {
-      return typeof promise !== 'undefined' && typeof promise.then === 'function';
+      return promise != null && typeof promise.then === 'function';
     }
 
     /**
@@ -5462,8 +5546,9 @@ var ParsePromise = (function () {
     /**
      * Returns a new promise that is fulfilled when all of the input promises
      * are resolved. If any promise in the list fails, then the returned promise
-     * will fail with the last error. If they all succeed, then the returned
-     * promise will succeed, with the results being the results of all the input
+     * will be rejected with an array containing the error from each promise.
+     * If they all succeed, then the returned promise will succeed, with the
+     * results being the results of all the input
      * promises. For example: <pre>
      *   var p1 = Parse.Promise.as(1);
      *   var p2 = Parse.Promise.as(2);
@@ -5477,10 +5562,8 @@ var ParsePromise = (function () {
      *
      * The input promises can also be specified as an array: <pre>
      *   var promises = [p1, p2, p3];
-     *   Parse.Promise.when(promises).then(function(r1, r2, r3) {
-     *     console.log(r1);  // prints 1
-     *     console.log(r2);  // prints 2
-     *     console.log(r3);  // prints 3
+     *   Parse.Promise.when(promises).then(function(results) {
+     *     console.log(results);  // prints [1,2,3]
      *   });
      * </pre>
      * @method when
@@ -5568,6 +5651,16 @@ var ParsePromise = (function () {
     value: function isPromisesAPlusCompliant() {
       return _isPromisesAPlusCompliant;
     }
+  }, {
+    key: 'enableAPlusCompliant',
+    value: function enableAPlusCompliant() {
+      _isPromisesAPlusCompliant = true;
+    }
+  }, {
+    key: 'disableAPlusCompliant',
+    value: function disableAPlusCompliant() {
+      _isPromisesAPlusCompliant = false;
+    }
   }]);
 
   return ParsePromise;
@@ -5575,7 +5668,8 @@ var ParsePromise = (function () {
 
 exports['default'] = ParsePromise;
 module.exports = exports['default'];
-},{"babel-runtime/helpers/class-call-check":43,"babel-runtime/helpers/create-class":44}],17:[function(_dereq_,module,exports){
+}).call(this,_dereq_('_process'))
+},{"_process":75,"babel-runtime/helpers/class-call-check":43,"babel-runtime/helpers/create-class":44}],17:[function(_dereq_,module,exports){
 /**
  * Copyright (c) 2015-present, Parse, LLC.
  * All rights reserved.
@@ -5636,8 +5730,7 @@ function quote(s) {
  * Creates a new parse Parse.Query for the given Parse.Object subclass.
  * @class Parse.Query
  * @constructor
- * @param objectClass -
- *   An instance of a subclass of Parse.Object, or a Parse className string.
+ * @param {} objectClass An instance of a subclass of Parse.Object, or a Parse className string.
  *
  * <p>Parse.Query defines a query that is used to fetch Parse.Objects. The
  * most common use case is finding all objects that match a query through the
@@ -5695,7 +5788,11 @@ var ParseQuery = (function () {
     _classCallCheck(this, ParseQuery);
 
     if (typeof objectClass === 'string') {
-      this.className = objectClass;
+      if (objectClass === 'User' && _CoreManager2['default'].get('PERFORM_USER_REWRITE')) {
+        this.className = '_User';
+      } else {
+        this.className = objectClass;
+      }
     } else if (objectClass instanceof _ParseObject2['default']) {
       this.className = objectClass.className;
     } else if (typeof objectClass === 'function') {
@@ -5797,6 +5894,9 @@ var ParseQuery = (function () {
      *   <li>sessionToken: A valid session token, used for making a request on
      *       behalf of a specific user.
      * </ul>
+     *
+     * @return {Parse.Promise} A promise that is resolved with the result when
+     * the query completes.
      */
   }, {
     key: 'get',
@@ -5859,7 +5959,9 @@ var ParseQuery = (function () {
 
       return controller.find(this.className, this.toJSON(), findOptions).then(function (response) {
         return response.results.map(function (data) {
-          data.className = _this.className;
+          if (!data.className) {
+            data.className = _this.className;
+          }
           return _ParseObject2['default'].fromJSON(data);
         });
       })._thenRunCallbacks(options);
@@ -5953,7 +6055,9 @@ var ParseQuery = (function () {
         if (!objects[0]) {
           return undefined;
         }
-        objects[0].className = _this2.className;
+        if (!objects[0].className) {
+          objects[0].className = _this2.className;
+        }
         return _ParseObject2['default'].fromJSON(objects[0]);
       })._thenRunCallbacks(options);
     }
@@ -6811,7 +6915,7 @@ var ParseRelation = (function () {
       var change = new _ParseOp.RelationOp(objects, []);
       this.parent.set(this.key, change);
       this.targetClassName = change._targetClassName;
-      return parent;
+      return this.parent;
     }
 
     /**
@@ -7362,6 +7466,8 @@ var ParseUser = (function (_ParseObject) {
             }
             _this._linkWith(provider, opts).then(function () {
               promise.resolve(_this);
+            }, function (error) {
+              promise.reject(error);
             });
           },
           error: function error(provider, _error) {
@@ -7394,7 +7500,7 @@ var ParseUser = (function (_ParseObject) {
         authType = provider.getAuthType();
       }
       var authData = this.get('authData');
-      if (typeof authData !== 'object') {
+      if (!provider || typeof authData !== 'object') {
         return;
       }
       var success = provider.restoreAuthentication(authData[authType]);
@@ -7551,6 +7657,13 @@ var ParseUser = (function (_ParseObject) {
   }, {
     key: 'setUsername',
     value: function setUsername(username) {
+      // Strip anonymity, even we do not support anonymous user in js SDK, we may
+      // encounter anonymous user created by android/iOS in cloud code.
+      var authData = this.get('authData');
+      if (authData && authData.hasOwnProperty('anonymous')) {
+        // We need to set anonymous to null instead of deleting it in order to remove it from Parse.
+        authData.anonymous = null;
+      }
       this.set('username', username);
     }
 
@@ -7663,10 +7776,6 @@ var ParseUser = (function (_ParseObject) {
   }, {
     key: 'logIn',
     value: function logIn(options) {
-      if (!canUseCurrentUser) {
-        throw new Error('It is not possible to log in on a server environment.');
-      }
-
       options = options || {};
 
       var loginOptions = {};
@@ -7675,7 +7784,49 @@ var ParseUser = (function (_ParseObject) {
       }
 
       var controller = _CoreManager2['default'].getUserController();
-      return controller.logIn(this, loginOptions)._thenRunCallbacks(options);
+      return controller.logIn(this, loginOptions)._thenRunCallbacks(options, this);
+    }
+
+    /**
+     * Wrap the default save behavior with functionality to save to local
+     * storage if this is current user.
+     */
+  }, {
+    key: 'save',
+    value: function save() {
+      var _this3 = this;
+
+      for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
+        args[_key] = arguments[_key];
+      }
+
+      return _get(Object.getPrototypeOf(ParseUser.prototype), 'save', this).apply(this, args).then(function () {
+        if (_this3.isCurrent()) {
+          return _CoreManager2['default'].getUserController().updateUserOnDisk(_this3);
+        }
+        return _this3;
+      });
+    }
+
+    /**
+     * Wrap the default fetch behavior with functionality to save to local
+     * storage if this is current user.
+     */
+  }, {
+    key: 'fetch',
+    value: function fetch() {
+      var _this4 = this;
+
+      for (var _len2 = arguments.length, args = Array(_len2), _key2 = 0; _key2 < _len2; _key2++) {
+        args[_key2] = arguments[_key2];
+      }
+
+      return _get(Object.getPrototypeOf(ParseUser.prototype), 'fetch', this).apply(this, args).then(function () {
+        if (_this4.isCurrent()) {
+          return _CoreManager2['default'].getUserController().updateUserOnDisk(_this4);
+        }
+        return _this4;
+      });
     }
   }], [{
     key: 'readOnlyAttributes',
@@ -7937,7 +8088,7 @@ var ParseUser = (function (_ParseObject) {
     }
 
     /**
-     * Enables the use of logIn, become, and a current user in a server
+     * Enables the use of become or the current user in a server
      * environment. These features are disabled by default, since they depend on
      * global objects that are not memory-safe for most servers.
      * @method enableUnsafeCurrentUser
@@ -7948,15 +8099,29 @@ var ParseUser = (function (_ParseObject) {
     value: function enableUnsafeCurrentUser() {
       canUseCurrentUser = true;
     }
+
+    /**
+     * Disables the use of become or the current user in any environment.
+     * These features are disabled on servers by default, since they depend on
+     * global objects that are not memory-safe for most servers.
+     * @method disableUnsafeCurrentUser
+     * @static
+     */
+  }, {
+    key: 'disableUnsafeCurrentUser',
+    value: function disableUnsafeCurrentUser() {
+      canUseCurrentUser = false;
+    }
   }, {
     key: '_registerAuthenticationProvider',
     value: function _registerAuthenticationProvider(provider) {
       authProviders[provider.getAuthType()] = provider;
       // Synchronize the current user with the auth provider.
-      var current = ParseUser.current();
-      if (current) {
-        current._synchronizeAuthData(provider.getAuthType());
-      }
+      ParseUser.currentAsync().then(function (current) {
+        if (current) {
+          current._synchronizeAuthData(provider.getAuthType());
+        }
+      });
     }
   }, {
     key: '_logInWith',
@@ -7985,16 +8150,20 @@ exports['default'] = ParseUser;
 _ParseObject3['default'].registerSubclass('_User', ParseUser);
 
 var DefaultController = {
-  setCurrentUser: function setCurrentUser(user) {
-    currentUserCache = user;
-    user._cleanupAuthData();
-    user._synchronizeAllAuthData();
+  updateUserOnDisk: function updateUserOnDisk(user) {
     var path = _Storage2['default'].generatePath(CURRENT_USER_KEY);
     var json = user.toJSON();
     json.className = '_User';
     return _Storage2['default'].setItemAsync(path, JSON.stringify(json)).then(function () {
       return user;
     });
+  },
+
+  setCurrentUser: function setCurrentUser(user) {
+    currentUserCache = user;
+    user._cleanupAuthData();
+    user._synchronizeAllAuthData();
+    return DefaultController.updateUserOnDisk(user);
   },
 
   currentUser: function currentUser() {
@@ -8014,7 +8183,21 @@ var DefaultController = {
       currentUserCache = null;
       return null;
     }
-    var current = ParseUser.fromJSON(JSON.parse(userData));
+    userData = JSON.parse(userData);
+    if (!userData.className) {
+      userData.className = '_User';
+    }
+    if (userData._id) {
+      if (userData.objectId !== userData._id) {
+        userData.objectId = userData._id;
+      }
+      delete userData._id;
+    }
+    if (userData._sessionToken) {
+      userData.sessionToken = userData._sessionToken;
+      delete userData._sessionToken;
+    }
+    var current = _ParseObject3['default'].fromJSON(userData);
     currentUserCache = current;
     current._synchronizeAllAuthData();
     return current;
@@ -8034,7 +8217,21 @@ var DefaultController = {
         currentUserCache = null;
         return _ParsePromise2['default'].as(null);
       }
-      var current = ParseUser.fromJSON(JSON.parse(userData));
+      userData = JSON.parse(userData);
+      if (!userData.className) {
+        userData.className = '_User';
+      }
+      if (userData._id) {
+        if (userData.objectId !== userData._id) {
+          userData.objectId = userData._id;
+        }
+        delete userData._id;
+      }
+      if (userData._sessionToken) {
+        userData.sessionToken = userData._sessionToken;
+        delete userData._sessionToken;
+      }
+      var current = _ParseObject3['default'].fromJSON(userData);
       currentUserCache = current;
       current._synchronizeAllAuthData();
       return _ParsePromise2['default'].as(current);
@@ -8076,6 +8273,10 @@ var DefaultController = {
       ObjectState.setPendingOp(user.className, user._getId(), 'password', undefined);
       response.password = undefined;
       user._finishFetch(response);
+      if (!canUseCurrentUser) {
+        // We can't set the current user, so just return the one we logged in
+        return _ParsePromise2['default'].as(user);
+      }
       return DefaultController.setCurrentUser(user);
     });
   },
@@ -8098,7 +8299,7 @@ var DefaultController = {
       if (currentUser !== null) {
         var currentSession = currentUser.getSessionToken();
         if (currentSession && (0, _isRevocableSession2['default'])(currentSession)) {
-          promise.then(function () {
+          promise = promise.then(function () {
             return RESTController.request('POST', 'logout', {}, { sessionToken: currentSession });
           });
         }
@@ -8161,6 +8362,23 @@ module.exports = exports['default'];
  * 
  */
 
+'use strict';
+
+var _interopRequireDefault = _dereq_('babel-runtime/helpers/interop-require-default')['default'];
+
+Object.defineProperty(exports, '__esModule', {
+  value: true
+});
+exports.send = send;
+
+var _CoreManager = _dereq_('./CoreManager');
+
+var _CoreManager2 = _interopRequireDefault(_CoreManager);
+
+var _ParseQuery = _dereq_('./ParseQuery');
+
+var _ParseQuery2 = _interopRequireDefault(_ParseQuery);
+
 /**
  * Contains functions to deal with Push in Parse.
  * @class Parse.Push
@@ -8189,33 +8407,19 @@ module.exports = exports['default'];
  * @return {Parse.Promise} A promise that is fulfilled when the push request
  *     completes.
  */
-'use strict';
-
-var _interopRequireDefault = _dereq_('babel-runtime/helpers/interop-require-default')['default'];
-
-Object.defineProperty(exports, '__esModule', {
-  value: true
-});
-exports.send = send;
-
-var _CoreManager = _dereq_('./CoreManager');
-
-var _CoreManager2 = _interopRequireDefault(_CoreManager);
 
 function send(data, options) {
   options = options || {};
 
-  if (data.where) {
+  if (data.where && data.where instanceof _ParseQuery2['default']) {
     data.where = data.where.toJSON().where;
   }
 
-  if (data.push_time) {
-    if (typeof data.push_time === 'object') {
-      data.push_time = data.push_time.toJSON();
-    }
+  if (data.push_time && typeof data.push_time === 'object') {
+    data.push_time = data.push_time.toJSON();
   }
 
-  if (data.expiration_time) {
+  if (data.expiration_time && typeof data.expiration_time === 'object') {
     data.expiration_time = data.expiration_time.toJSON();
   }
 
@@ -8237,7 +8441,7 @@ _CoreManager2['default'].setPushController({
     return request._thenRunCallbacks(options);
   }
 });
-},{"./CoreManager":3,"babel-runtime/helpers/interop-require-default":47}],23:[function(_dereq_,module,exports){
+},{"./CoreManager":3,"./ParseQuery":17,"babel-runtime/helpers/interop-require-default":47}],23:[function(_dereq_,module,exports){
 (function (process){
 /**
  * Copyright (c) 2015-present, Parse, LLC.
@@ -8294,7 +8498,9 @@ function ajaxIE9(method, url, data) {
     } catch (e) {
       promise.reject(e);
     }
-    promise.resolve(response);
+    if (response) {
+      promise.resolve(response);
+    }
   };
   xdr.onerror = xdr.ontimeout = function () {
     // Let's fake a real error message.
@@ -8339,15 +8545,19 @@ var RESTController = {
           try {
             response = JSON.parse(xhr.responseText);
           } catch (e) {
-            promise.reject(e);
+            promise.reject(e.toString());
           }
-          promise.resolve(response, xhr.status, xhr);
-        } else if (xhr.status >= 500) {
-          // retry on 5XX
+          if (response) {
+            promise.resolve(response, xhr.status, xhr);
+          }
+        } else if (xhr.status >= 500 || xhr.status === 0) {
+          // retry on 5XX or node-xmlhttprequest error
           if (++attempts < _CoreManager2['default'].get('REQUEST_ATTEMPT_LIMIT')) {
             // Exponentially-growing random delay
             var delay = Math.round(Math.random() * 125 * Math.pow(2, attempts));
             setTimeout(dispatch, delay);
+          } else if (xhr.status === 0) {
+            promise.reject('Unable to connect to the Parse API');
           } else {
             // After the retry limit is reached, fail
             promise.reject(xhr);
@@ -8377,7 +8587,10 @@ var RESTController = {
   request: function request(method, path, data, options) {
     options = options || {};
     var url = _CoreManager2['default'].get('SERVER_URL');
-    url += '/1/' + path;
+    if (url[url.length - 1] !== '/') {
+      url += '/';
+    }
+    url += path;
 
     var payload = {};
     if (data && typeof data === 'object') {
@@ -8393,7 +8606,7 @@ var RESTController = {
 
     payload._ApplicationId = _CoreManager2['default'].get('APPLICATION_ID');
     payload._JavaScriptKey = _CoreManager2['default'].get('JAVASCRIPT_KEY');
-    payload._ClientVersion = 'js' + _CoreManager2['default'].get('VERSION');
+    payload._ClientVersion = _CoreManager2['default'].get('VERSION');
 
     var useMasterKey = options.useMasterKey;
     if (typeof useMasterKey === 'undefined') {
@@ -8401,6 +8614,7 @@ var RESTController = {
     }
     if (useMasterKey) {
       if (_CoreManager2['default'].get('MASTER_KEY')) {
+        delete payload._JavaScriptKey;
         payload._MasterKey = _CoreManager2['default'].get('MASTER_KEY');
       } else {
         throw new Error('Cannot use the Master Key, it has not been provided.');
@@ -8590,7 +8804,11 @@ module.exports = {
   },
 
   setItem: function setItem(path, value) {
-    localStorage.setItem(path, value);
+    try {
+      localStorage.setItem(path, value);
+    } catch (e) {
+      // Quota exceeded, possibly due to Safari Private Browsing mode
+    }
   },
 
   removeItem: function removeItem(path) {
@@ -8926,72 +9144,56 @@ var _ParseRelation2 = _interopRequireDefault(_ParseRelation);
 
 var toString = Object.prototype.toString;
 
-function encode(_x, _x2, _x3, _x4) {
-  var _again = true;
-
-  _function: while (_again) {
-    var value = _x,
-        disallowObjects = _x2,
-        forcePointers = _x3,
-        seen = _x4;
-    json = output = k = undefined;
-    _again = false;
-
-    if (value instanceof _ParseObject2['default']) {
-      if (disallowObjects) {
-        throw new Error('Parse Objects not allowed here');
-      }
-      if (forcePointers || !seen || seen.indexOf(value) > -1 || value.dirty() || _Object$keys(value._getServerData()).length < 1) {
-        return value.toPointer();
-      }
-      seen = seen.concat(value);
-      var json = value._toFullJSON(seen);
-      _x = json;
-      _x2 = disallowObjects;
-      _x3 = forcePointers;
-      _x4 = seen;
-      _again = true;
-      continue _function;
+function encode(value, disallowObjects, forcePointers, seen) {
+  if (value instanceof _ParseObject2['default']) {
+    if (disallowObjects) {
+      throw new Error('Parse Objects not allowed here');
     }
-    if (value instanceof _ParseOp.Op || value instanceof _ParseACL2['default'] || value instanceof _ParseGeoPoint2['default'] || value instanceof _ParseRelation2['default']) {
-      return value.toJSON();
+    var seenEntry = value.id ? value.className + ':' + value.id : value;
+    if (forcePointers || !seen || seen.indexOf(seenEntry) > -1 || value.dirty() || _Object$keys(value._getServerData()).length < 1) {
+      return value.toPointer();
     }
-    if (value instanceof _ParseFile2['default']) {
-      if (!value.url()) {
-        throw new Error('Tried to encode an unsaved file.');
-      }
-      return value.toJSON();
-    }
-    if (toString.call(value) === '[object Date]') {
-      if (isNaN(value)) {
-        throw new Error('Tried to encode an invalid date.');
-      }
-      return { __type: 'Date', iso: value.toJSON() };
-    }
-    if (toString.call(value) === '[object RegExp]' && typeof value.source === 'string') {
-      return value.source;
-    }
-
-    if (Array.isArray(value)) {
-      return value.map(function (v) {
-        return encode(v, disallowObjects, forcePointers, seen);
-      });
-    }
-
-    if (value && typeof value === 'object') {
-      var output = {};
-      for (var k in value) {
-        output[k] = encode(value[k], disallowObjects, forcePointers, seen);
-      }
-      return output;
-    }
-
-    return value;
+    seen = seen.concat(seenEntry);
+    return value._toFullJSON(seen);
   }
+  if (value instanceof _ParseOp.Op || value instanceof _ParseACL2['default'] || value instanceof _ParseGeoPoint2['default'] || value instanceof _ParseRelation2['default']) {
+    return value.toJSON();
+  }
+  if (value instanceof _ParseFile2['default']) {
+    if (!value.url()) {
+      throw new Error('Tried to encode an unsaved file.');
+    }
+    return value.toJSON();
+  }
+  if (toString.call(value) === '[object Date]') {
+    if (isNaN(value)) {
+      throw new Error('Tried to encode an invalid date.');
+    }
+    return { __type: 'Date', iso: value.toJSON() };
+  }
+  if (toString.call(value) === '[object RegExp]' && typeof value.source === 'string') {
+    return value.source;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(function (v) {
+      return encode(v, disallowObjects, forcePointers, seen);
+    });
+  }
+
+  if (value && typeof value === 'object') {
+    var output = {};
+    for (var k in value) {
+      output[k] = encode(value[k], disallowObjects, forcePointers, seen);
+    }
+    return output;
+  }
+
+  return value;
 }
 
-exports['default'] = function (value, disallowObjects, forcePointers) {
-  return encode(value, !!disallowObjects, !!forcePointers, []);
+exports['default'] = function (value, disallowObjects, forcePointers, seen) {
+  return encode(value, !!disallowObjects, !!forcePointers, seen || []);
 };
 
 module.exports = exports['default'];
@@ -9371,7 +9573,6 @@ exports["default"] = function get(_x, _x2, _x3) {
     var object = _x,
         property = _x2,
         receiver = _x3;
-    desc = parent = getter = undefined;
     _again = false;
     if (object === null) object = Function.prototype;
 
@@ -9387,6 +9588,7 @@ exports["default"] = function get(_x, _x2, _x3) {
         _x2 = property;
         _x3 = receiver;
         _again = true;
+        desc = parent = undefined;
         continue _function;
       }
     } else if ("value" in desc) {
@@ -9502,7 +9704,7 @@ module.exports = function(it){
   return toString.call(it).slice(8, -1);
 };
 },{}],58:[function(_dereq_,module,exports){
-var core = module.exports = {};
+var core = module.exports = {version: '1.2.6'};
 if(typeof __e == 'number')__e = core; // eslint-disable-line no-undef
 },{}],59:[function(_dereq_,module,exports){
 // optional / simple context binding
@@ -9520,65 +9722,65 @@ module.exports = function(fn, that, length){
     case 3: return function(a, b, c){
       return fn.call(that, a, b, c);
     };
-  } return function(/* ...args */){
-      return fn.apply(that, arguments);
-    };
-};
-},{"./$.a-function":55}],60:[function(_dereq_,module,exports){
-var global    = _dereq_('./$.global')
-  , core      = _dereq_('./$.core')
-  , PROTOTYPE = 'prototype';
-var ctx = function(fn, that){
-  return function(){
+  }
+  return function(/* ...args */){
     return fn.apply(that, arguments);
   };
 };
-var $def = function(type, name, source){
-  var key, own, out, exp
-    , isGlobal = type & $def.G
-    , isProto  = type & $def.P
-    , target   = isGlobal ? global : type & $def.S
-        ? global[name] : (global[name] || {})[PROTOTYPE]
-    , exports  = isGlobal ? core : core[name] || (core[name] = {});
-  if(isGlobal)source = name;
-  for(key in source){
-    // contains in native
-    own = !(type & $def.F) && target && key in target;
-    if(own && key in exports)continue;
-    // export native or passed
-    out = own ? target[key] : source[key];
-    // prevent global pollution for namespaces
-    if(isGlobal && typeof target[key] != 'function')exp = source[key];
-    // bind timers to global for call from export context
-    else if(type & $def.B && own)exp = ctx(out, global);
-    // wrap global constructors for prevent change them in library
-    else if(type & $def.W && target[key] == out)!function(C){
-      exp = function(param){
-        return this instanceof C ? new C(param) : C(param);
-      };
-      exp[PROTOTYPE] = C[PROTOTYPE];
-    }(out);
-    else exp = isProto && typeof out == 'function' ? ctx(Function.call, out) : out;
-    // export
-    exports[key] = exp;
-    if(isProto)(exports[PROTOTYPE] || (exports[PROTOTYPE] = {}))[key] = out;
-  }
-};
-// type bitmap
-$def.F = 1;  // forced
-$def.G = 2;  // global
-$def.S = 4;  // static
-$def.P = 8;  // proto
-$def.B = 16; // bind
-$def.W = 32; // wrap
-module.exports = $def;
-},{"./$.core":58,"./$.global":63}],61:[function(_dereq_,module,exports){
+},{"./$.a-function":55}],60:[function(_dereq_,module,exports){
 // 7.2.1 RequireObjectCoercible(argument)
 module.exports = function(it){
   if(it == undefined)throw TypeError("Can't call method on  " + it);
   return it;
 };
-},{}],62:[function(_dereq_,module,exports){
+},{}],61:[function(_dereq_,module,exports){
+var global    = _dereq_('./$.global')
+  , core      = _dereq_('./$.core')
+  , ctx       = _dereq_('./$.ctx')
+  , PROTOTYPE = 'prototype';
+
+var $export = function(type, name, source){
+  var IS_FORCED = type & $export.F
+    , IS_GLOBAL = type & $export.G
+    , IS_STATIC = type & $export.S
+    , IS_PROTO  = type & $export.P
+    , IS_BIND   = type & $export.B
+    , IS_WRAP   = type & $export.W
+    , exports   = IS_GLOBAL ? core : core[name] || (core[name] = {})
+    , target    = IS_GLOBAL ? global : IS_STATIC ? global[name] : (global[name] || {})[PROTOTYPE]
+    , key, own, out;
+  if(IS_GLOBAL)source = name;
+  for(key in source){
+    // contains in native
+    own = !IS_FORCED && target && key in target;
+    if(own && key in exports)continue;
+    // export native or passed
+    out = own ? target[key] : source[key];
+    // prevent global pollution for namespaces
+    exports[key] = IS_GLOBAL && typeof target[key] != 'function' ? source[key]
+    // bind timers to global for call from export context
+    : IS_BIND && own ? ctx(out, global)
+    // wrap global constructors for prevent change them in library
+    : IS_WRAP && target[key] == out ? (function(C){
+      var F = function(param){
+        return this instanceof C ? new C(param) : C(param);
+      };
+      F[PROTOTYPE] = C[PROTOTYPE];
+      return F;
+    // make static versions for prototype methods
+    })(out) : IS_PROTO && typeof out == 'function' ? ctx(Function.call, out) : out;
+    if(IS_PROTO)(exports[PROTOTYPE] || (exports[PROTOTYPE] = {}))[key] = out;
+  }
+};
+// type bitmap
+$export.F = 1;  // forced
+$export.G = 2;  // global
+$export.S = 4;  // static
+$export.P = 8;  // proto
+$export.B = 16; // bind
+$export.W = 32; // wrap
+module.exports = $export;
+},{"./$.core":58,"./$.ctx":59,"./$.global":63}],62:[function(_dereq_,module,exports){
 module.exports = function(exec){
   try {
     return !!exec();
@@ -9588,20 +9790,18 @@ module.exports = function(exec){
 };
 },{}],63:[function(_dereq_,module,exports){
 // https://github.com/zloirock/core-js/issues/86#issuecomment-115759028
-var UNDEFINED = 'undefined';
-var global = module.exports = typeof window != UNDEFINED && window.Math == Math
-  ? window : typeof self != UNDEFINED && self.Math == Math ? self : Function('return this')();
+var global = module.exports = typeof window != 'undefined' && window.Math == Math
+  ? window : typeof self != 'undefined' && self.Math == Math ? self : Function('return this')();
 if(typeof __g == 'number')__g = global; // eslint-disable-line no-undef
 },{}],64:[function(_dereq_,module,exports){
-// indexed object, fallback for non-array-like ES3 strings
+// fallback for non-array-like ES3 and non-enumerable old V8 strings
 var cof = _dereq_('./$.cof');
-module.exports = 0 in Object('z') ? Object : function(it){
+module.exports = Object('z').propertyIsEnumerable(0) ? Object : function(it){
   return cof(it) == 'String' ? it.split('') : Object(it);
 };
 },{"./$.cof":57}],65:[function(_dereq_,module,exports){
-// http://jsperf.com/core-js-isobject
 module.exports = function(it){
-  return it !== null && (typeof it == 'object' || typeof it == 'function');
+  return typeof it === 'object' ? it !== null : typeof it === 'function';
 };
 },{}],66:[function(_dereq_,module,exports){
 var $Object = Object;
@@ -9619,14 +9819,16 @@ module.exports = {
 };
 },{}],67:[function(_dereq_,module,exports){
 // most Object methods by ES6 should accept primitives
+var $export = _dereq_('./$.export')
+  , core    = _dereq_('./$.core')
+  , fails   = _dereq_('./$.fails');
 module.exports = function(KEY, exec){
-  var $def = _dereq_('./$.def')
-    , fn   = (_dereq_('./$.core').Object || {})[KEY] || Object[KEY]
-    , exp  = {};
+  var fn  = (core.Object || {})[KEY] || Object[KEY]
+    , exp = {};
   exp[KEY] = exec(fn);
-  $def($def.S + $def.F * _dereq_('./$.fails')(function(){ fn(1); }), 'Object', exp);
+  $export($export.S + $export.F * fails(function(){ fn(1); }), 'Object', exp);
 };
-},{"./$.core":58,"./$.def":60,"./$.fails":62}],68:[function(_dereq_,module,exports){
+},{"./$.core":58,"./$.export":61,"./$.fails":62}],68:[function(_dereq_,module,exports){
 // Works with __proto__ only. Old v8 can't work with null proto objects.
 /* eslint-disable no-proto */
 var getDesc  = _dereq_('./$').getDesc
@@ -9637,20 +9839,20 @@ var check = function(O, proto){
   if(!isObject(proto) && proto !== null)throw TypeError(proto + ": can't set as prototype!");
 };
 module.exports = {
-  set: Object.setPrototypeOf || ('__proto__' in {} // eslint-disable-line
-    ? function(buggy, set){
-        try {
-          set = _dereq_('./$.ctx')(Function.call, getDesc(Object.prototype, '__proto__').set, 2);
-          set({}, []);
-        } catch(e){ buggy = true; }
-        return function setPrototypeOf(O, proto){
-          check(O, proto);
-          if(buggy)O.__proto__ = proto;
-          else set(O, proto);
-          return O;
-        };
-      }()
-    : undefined),
+  set: Object.setPrototypeOf || ('__proto__' in {} ? // eslint-disable-line
+    function(test, buggy, set){
+      try {
+        set = _dereq_('./$.ctx')(Function.call, getDesc(Object.prototype, '__proto__').set, 2);
+        set(test, []);
+        buggy = !(test instanceof Array);
+      } catch(e){ buggy = true; }
+      return function setPrototypeOf(O, proto){
+        check(O, proto);
+        if(buggy)O.__proto__ = proto;
+        else set(O, proto);
+        return O;
+      };
+    }({}, false) : undefined),
   check: check
 };
 },{"./$":66,"./$.an-object":56,"./$.ctx":59,"./$.is-object":65}],69:[function(_dereq_,module,exports){
@@ -9660,13 +9862,13 @@ var IObject = _dereq_('./$.iobject')
 module.exports = function(it){
   return IObject(defined(it));
 };
-},{"./$.defined":61,"./$.iobject":64}],70:[function(_dereq_,module,exports){
+},{"./$.defined":60,"./$.iobject":64}],70:[function(_dereq_,module,exports){
 // 7.1.13 ToObject(argument)
 var defined = _dereq_('./$.defined');
 module.exports = function(it){
   return Object(defined(it));
 };
-},{"./$.defined":61}],71:[function(_dereq_,module,exports){
+},{"./$.defined":60}],71:[function(_dereq_,module,exports){
 // 19.1.2.5 Object.freeze(O)
 var isObject = _dereq_('./$.is-object');
 
@@ -9695,9 +9897,9 @@ _dereq_('./$.object-sap')('keys', function($keys){
 });
 },{"./$.object-sap":67,"./$.to-object":70}],74:[function(_dereq_,module,exports){
 // 19.1.3.19 Object.setPrototypeOf(O, proto)
-var $def = _dereq_('./$.def');
-$def($def.S, 'Object', {setPrototypeOf: _dereq_('./$.set-proto').set});
-},{"./$.def":60,"./$.set-proto":68}],75:[function(_dereq_,module,exports){
+var $export = _dereq_('./$.export');
+$export($export.S, 'Object', {setPrototypeOf: _dereq_('./$.set-proto').set});
+},{"./$.export":61,"./$.set-proto":68}],75:[function(_dereq_,module,exports){
 
 },{}]},{},[7])(7)
 });

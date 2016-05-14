@@ -25,8 +25,12 @@ angular.module('parse-starter', ['ionic', 'parse-starter.controllers', 'parse-st
   })
   .run(function ($ionicPlatform, $state) {
 
-    Parse.initialize("ApplicationID", "JavaScriptKey");
+    //Parse.com method    
+   // Parse.initialize("ApplicationID", "JavaScriptKey"); //uncomment if using old parse servers.
 
+    //Parser server method
+    Parse.initialize("YOUR_APP_ID");
+    Parse.serverURL = 'http://YOUR_PARSE_SERVER:1337/parse'
     //Todo
     //window.fbAsyncInit = function () {
     //  Parse.FacebookUtils.init({ // this line replaces FB.init({

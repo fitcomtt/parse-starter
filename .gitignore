@@ -5,3 +5,10 @@ node_modules/
 platforms/
 plugins/
 .io-config.json
+.vscode/
+www/lib/angular/
+www/lib/angular-animate/
+www/lib/angular-sanitize/
+www/lib/angular-ui-router/
+www/lib/ionic/
+.jsconfig.json
